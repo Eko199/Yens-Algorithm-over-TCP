@@ -13,3 +13,5 @@ all: $(targets)
 
 clean:
 	rm -f yen.out
+	rm -f server.out
+	rm -f client.out
