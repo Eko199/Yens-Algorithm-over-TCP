@@ -1,4 +1,4 @@
-targets := yen.out
+targets := yen.out server.out client.out
 CXXFlags = -std=c++2a -Wall -Werror -Wunused
 
 all: $(targets)

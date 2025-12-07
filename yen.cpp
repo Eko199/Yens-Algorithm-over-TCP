@@ -12,7 +12,7 @@ typedef std::pair<unsigned, unsigned> edge;
 typedef std::vector<unsigned> path;
 
 struct edgeHash {
-    std::size_t operator()(const edge& e) const {
+    size_t operator()(const edge& e) const {
         size_t hash1 = std::hash<unsigned>{}(e.first);
         size_t hash2 = std::hash<unsigned>{}(e.second);
 
@@ -54,7 +54,7 @@ std::vector<unsigned> dijkstra(const std::vector<std::vector<edge>>& graph, cons
     std::vector<unsigned> dist(graph.size(), INT_MAX);
     dist[start] = 0;
 
-    if (prev != nullptr) {
+    if (prev) {
         *prev = std::vector<unsigned>(graph.size(), INT_MAX);
     }
 
