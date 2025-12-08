@@ -1,15 +1,10 @@
 #include <algorithm>
 #include <climits>
-#include <functional>
 #include <iostream>
 #include <queue>
 #include <stdexcept>
 #include <unordered_set>
-#include <utility>
-#include <vector>
-
-typedef std::pair<unsigned, unsigned> edge;
-typedef std::vector<unsigned> path;
+#include "yen.h"
 
 struct edgeHash {
     size_t operator()(const edge& e) const {
@@ -46,7 +41,7 @@ struct pathWithCost {
 };
 
 std::vector<unsigned> dijkstra(const std::vector<std::vector<edge>>& graph, const unsigned start, 
-    std::vector<unsigned>* prev = nullptr, std::function<bool(const edge&)> filter = nullptr) {
+    std::vector<unsigned>* prev, std::function<bool(const edge&)> filter) {
     if (start > graph.size() - 1) {
         throw std::invalid_argument("Provided start is not a vertex in the graph.");
     }
@@ -116,10 +111,19 @@ std::vector<path> yen(const std::vector<std::vector<edge>>& graph, const unsigne
         throw std::invalid_argument("Provided start or end is not a vertex in the graph.");
     }
 
+    if (k == 0) {
+        throw std::invalid_argument("Invalid K! Must be at least 1.");
+    }
+
     std::vector<path> kth_path(k);
     std::vector<std::vector<unsigned>> kth_cost(k);
 
     pathWithCost path0 = dijkstra_to(graph, start, end);
+
+    if (path0.getTotalCost() >= INT_MAX) {
+        return {};
+    }
+
     kth_path[0] = path0.pathNodes;
     kth_cost[0] = path0.cumulativeCost;
 
@@ -189,59 +193,39 @@ std::vector<path> yen(const std::vector<std::vector<edge>>& graph, const unsigne
     return kth_path;
 }
 
-int main() {
-    std::vector<std::vector<edge>> graph(5);
+// Sample graph:
+// std::vector<std::vector<edge>> graph(5);
 
-    graph[0].push_back({1, 10});
-    graph[0].push_back({2, 3});
+// graph[0].push_back({1, 10});
+// graph[0].push_back({2, 3});
 
-    graph[1].push_back({2, 1});
-    graph[1].push_back({3, 2});
+// graph[1].push_back({2, 1});
+// graph[1].push_back({3, 2});
 
-    graph[2].push_back({1, 4});
-    graph[2].push_back({3, 8});
-    graph[2].push_back({4, 2});
+// graph[2].push_back({1, 4});
+// graph[2].push_back({3, 8});
+// graph[2].push_back({4, 2});
 
-    graph[3].push_back({4, 7});
+// graph[3].push_back({4, 7});
 
-    graph[4].push_back({3, 9});
+// graph[4].push_back({3, 9});
 
-    for (unsigned i = 0; i < graph.size(); i++) {
-        std::cout << "Node " << i << ": ";
+// for (unsigned i = 0; i < graph.size(); i++) {
+//     std::cout << "Node " << i << ": ";
 
-        for (edge& edge : graph[i]) {
-            std::cout << "(" << edge.first << ", " << edge.second << ") ";
-        }
-        
-        std::cout << "\n";
-    }
+//     for (edge& edge : graph[i]) {
+//         std::cout << "(" << edge.first << ", " << edge.second << ") ";
+//     }
 
-    unsigned k = 5;
-    std::vector<path> paths = yen(graph, 0, 3, k);
+//     std::cout << "\n";
+// }
 
-    std::cout << "Top " << k << " shortest paths:\n";
-    for (size_t i = 0; i < paths.size(); ++i) {
-        int cost = 0;
+// unsigned k = 5;
+// std::vector<path> paths = yen(graph, 0, 3, k);
 
-        for (size_t j = 0; j + 1 < paths[i].size(); ++j) {
-            unsigned u = paths[i][j];
-            unsigned v = paths[i][j+1];
-            
-            for (auto& e : graph[u]) {
-                if (e.first == v) { 
-                    cost += e.second; break; 
-                }
-            }
-        }
-
-        std::cout << "Path " << i+1 << ": ";
-
-        for (int node : paths[i]) {
-            std::cout << node << " ";
-        }
-        
-        std::cout << "(cost = " << cost << ")\n";
-    }
-
-    return 0;
-}
+// Top 5 shortest paths:
+// Path 1: 0 2 1 3 (cost = 9)
+// Path 2: 0 2 3 (cost = 11)
+// Path 3: 0 1 3 (cost = 12)
+// Path 4: 0 2 4 3 (cost = 14)
+// Path 5: 0 1 2 4 3 (cost = 22)

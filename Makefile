@@ -1,4 +1,4 @@
-targets := yen.out server.out client.out
+targets := server.out client.out
 CXXFlags = -std=c++2a -Wall -Werror -Wunused
 
 all: $(targets)
@@ -7,11 +7,17 @@ all: $(targets)
 	gcc $< -o $@
 	chmod +x $@
 
-%.out: %.cpp
+%.o: %.cpp
+	g++ $(CXXFlags) -c $< -o $@ -pthread -ltbb
+
+server.out: server.o yen.o
+	g++ $(CXXFlags) $^ -o $@ -pthread -ltbb
+	chmod +x $@
+
+%.out: %.o
 	g++ $(CXXFlags) $< -o $@ -pthread -ltbb
 	chmod +x $@
 
 clean:
-	rm -f yen.out
-	rm -f server.out
-	rm -f client.out
+	rm -f *.o
+	rm -f *.out
