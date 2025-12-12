@@ -1,23 +1,22 @@
-targets := server.out client.out
+targets := bin/server.out bin/client.out
 CXXFlags = -std=c++2a -Wall -Werror -Wunused
 
-all: $(targets)
+all: mkdir_bin $(targets)
 
-%.out: %.c
+mkdir_bin:
+	mkdir -p bin
+
+bin/%.out: src/%.c
 	gcc $< -o $@
 	chmod +x $@
 
-%.o: %.cpp
-	g++ $(CXXFlags) -c $< -o $@ -pthread -ltbb
-
-server.out: server.o yen.o
+bin/server.out: src/server.cpp src/yen.cpp
 	g++ $(CXXFlags) $^ -o $@ -pthread -ltbb
 	chmod +x $@
 
-%.out: %.o
+bin/%.out: src/%.cpp
 	g++ $(CXXFlags) $< -o $@ -pthread -ltbb
 	chmod +x $@
 
 clean:
-	rm -f *.o
-	rm -f *.out
+	rm -rf bin
