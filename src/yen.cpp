@@ -4,6 +4,7 @@
 #include <queue>
 #include <stdexcept>
 #include <unordered_set>
+#include "threadpool.h"
 #include "yen.h"
 
 struct edgeHash {
@@ -131,54 +132,68 @@ std::vector<path> yen(const std::vector<std::vector<edge>>& graph, const unsigne
     std::priority_queue<pathWithCost> candidate_paths;
     std::unordered_set<path, pathHash> candidates_set;
 
+    Threadpool tpool;
+    std::mutex candidates_mutex;
+
     for (unsigned curr_k = 1; curr_k < k; ++curr_k) {
         path prev_path = kth_path[curr_k - 1];
 
         //i - deviation from k-1th shortest path
         for (unsigned i = 0; i < prev_path.size() - 1; ++i) {
-            std::unordered_set<edge, edgeHash> banned_edges;
+            tpool.enqueue([&, i]() {
+                std::unordered_set<edge, edgeHash> banned_edges;
 
-            for (const path& path : kth_path) {
-                if (path.size() < i + 1 || !std::equal(prev_path.begin(), prev_path.begin() + i, path.begin())) {
-                    continue;
+                for (const path& path : kth_path) {
+                    if (path.size() < i + 1 || !std::equal(prev_path.begin(), prev_path.begin() + i, path.begin())) {
+                        continue;
+                    }
+
+                    banned_edges.insert({ path[i], path[i + 1] });
                 }
 
-                banned_edges.insert({ path[i], path[i + 1] });
-            }
+                std::unordered_set<unsigned> banned_vertices;
 
-            std::unordered_set<unsigned> banned_vertices;
+                for (unsigned j = 0; j < i; ++j) {
+                    banned_vertices.insert(prev_path[j]);
+                }
 
-            for (unsigned j = 0; j < i; ++j) {
-                banned_vertices.insert(prev_path[j]);
-            }
+                std::function<bool(const edge&)> filter = [&](const edge& e) {
+                    return !banned_edges.count(e) && !banned_vertices.count(e.first) && !banned_vertices.count(e.second);
+                };
 
-            std::function<bool(const edge&)> filter = [&](const edge& e) {
-                return !banned_edges.count(e) && !banned_vertices.count(e.first) && !banned_vertices.count(e.second);
-            };
+                pathWithCost spurPath = dijkstra_to(graph, prev_path[i], end, filter);
 
-            pathWithCost spurPath = dijkstra_to(graph, prev_path[i], end, filter);
+                if (spurPath.getTotalCost() >= INT_MAX) {
+                    return;
+                }
 
-            if (spurPath.getTotalCost() >= INT_MAX) {
-                continue;
-            }
+                //append root to spur
+                path curr_path(prev_path.begin(), prev_path.begin() + i);
+                curr_path.insert(curr_path.end(), spurPath.pathNodes.begin(), spurPath.pathNodes.end());
 
-            //append root to spur
-            path curr_path(prev_path.begin(), prev_path.begin() + i);
-            curr_path.insert(curr_path.end(), spurPath.pathNodes.begin(), spurPath.pathNodes.end());
+                {
+                    std::unique_lock<std::mutex> lock(candidates_mutex);
 
-            if (candidates_set.count(curr_path)) {
-                continue;
-            }
+                    if (candidates_set.count(curr_path)) {
+                        return;
+                    }
 
-            candidates_set.insert(curr_path);
-            
-            std::vector<unsigned> cumulativeCost;
-            for (size_t j = 0; j < curr_path.size(); ++j) {
-                cumulativeCost.push_back(j <= i ? kth_cost[curr_k - 1][j] : kth_cost[curr_k - 1][i] + spurPath.cumulativeCost[j - i]);
-            }
-            
-            candidate_paths.push({ curr_path, cumulativeCost });
+                    candidates_set.insert(curr_path);
+                }
+                
+                std::vector<unsigned> cumulativeCost;
+                for (size_t j = 0; j < curr_path.size(); ++j) {
+                    cumulativeCost.push_back(j <= i ? kth_cost[curr_k - 1][j] : kth_cost[curr_k - 1][i] + spurPath.cumulativeCost[j - i]);
+                }
+                
+                {
+                    std::unique_lock<std::mutex> lock(candidates_mutex);
+                    candidate_paths.push({ curr_path, cumulativeCost });
+                }
+            });
         }
+
+        tpool.wait_finished();
 
         if (candidates_set.empty()) {
             break;

@@ -22,6 +22,13 @@ Threadpool::Threadpool(size_t n) {
                 }
 
                 task();
+
+                {
+                    std::unique_lock<std::mutex> lock(waitMut);
+                    --pendingTasks;
+                }
+
+                waitCv.notify_one();
             }
         });
     }
@@ -40,11 +47,9 @@ Threadpool::~Threadpool() {
     }
 }
 
-void Threadpool::enqueue(std::function<void()> task) {
-    {
-        std::unique_lock<std::mutex> lock(mut);
-        tasks.push(std::move(task));
-    }
-
-    cv.notify_one();
+void Threadpool::wait_finished() {
+    std::unique_lock<std::mutex> lock(waitMut);
+    waitCv.wait(lock, [this]() { 
+        return pendingTasks == 0; 
+    });
 }
