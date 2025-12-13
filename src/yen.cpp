@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <climits>
+#include <cmath>
 #include <iostream>
 #include <queue>
 #include <stdexcept>
@@ -137,20 +138,21 @@ std::vector<path> yen(const std::vector<std::vector<edge>>& graph, const unsigne
 
     for (unsigned curr_k = 1; curr_k < k; ++curr_k) {
         path prev_path = kth_path[curr_k - 1];
+        std::vector<std::unordered_set<edge, edgeHash>> banned_edges(prev_path.size() - 1);
+
+        for (const path& path : kth_path) {
+            for (unsigned i = 0; i < std::min(prev_path.size(), path.size()) - 1; ++i) {
+                if (path[i] != prev_path[i]) {
+                    break;
+                }
+
+                banned_edges[i].insert({ path[i], path[i + 1] });
+            }
+        }
 
         //i - deviation from k-1th shortest path
         for (unsigned i = 0; i < prev_path.size() - 1; ++i) {
             tpool.enqueue([&, i]() {
-                std::unordered_set<edge, edgeHash> banned_edges;
-
-                for (const path& path : kth_path) {
-                    if (path.size() < i + 1 || !std::equal(prev_path.begin(), prev_path.begin() + i, path.begin())) {
-                        continue;
-                    }
-
-                    banned_edges.insert({ path[i], path[i + 1] });
-                }
-
                 std::unordered_set<unsigned> banned_vertices;
 
                 for (unsigned j = 0; j < i; ++j) {
@@ -158,7 +160,7 @@ std::vector<path> yen(const std::vector<std::vector<edge>>& graph, const unsigne
                 }
 
                 std::function<bool(const edge&)> filter = [&](const edge& e) {
-                    return !banned_edges.count(e) && !banned_vertices.count(e.first) && !banned_vertices.count(e.second);
+                    return !banned_edges[i].count(e) && !banned_vertices.count(e.first) && !banned_vertices.count(e.second);
                 };
 
                 pathWithCost spurPath = dijkstra_to(graph, prev_path[i], end, filter);
