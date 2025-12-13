@@ -1,7 +1,10 @@
 #include <cstdio>
+#include <errno.h>
+#include <functional>
 #include <iostream>
 #include <netinet/in.h>
 #include <csignal>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <thread>
@@ -13,7 +16,7 @@ bool running = true;
 
 void interruptHandler(int signum) {
     running = false;
-    std::cout << "Closing...";
+    std::cout << "Closing the server...\n";
 }
 
 bool readUint32(const int fd, uint32_t* value) {
@@ -166,9 +169,30 @@ int main() {
         return -1;
     }
 
-    struct sockaddr_in clientAddr;
+    Threadpool tpool(30);
     
+    fd_set readFds;
+    FD_ZERO(&readFds);
+    FD_SET(s, &readFds);
+
     while (running) {
+        int cnt = select(s + 1, &readFds, nullptr, nullptr, nullptr);
+
+        if (cnt < 0) {
+            if (errno == EINTR) {
+                break;
+            }
+
+            perror("select");
+            close(s);
+            return -1;
+        }
+
+        if (cnt == 0) {
+            continue;
+        }
+
+        struct sockaddr_in clientAddr;
         socklen_t clientAddrLen = sizeof(clientAddr);
         int clientFd = accept(s, (struct sockaddr*) &clientAddr, &clientAddrLen);
 
@@ -177,7 +201,7 @@ int main() {
             continue;
         }
 
-        serveClient(clientFd);
+        tpool.enqueue(std::bind(serveClient, clientFd));
     }
 
     close(s);
