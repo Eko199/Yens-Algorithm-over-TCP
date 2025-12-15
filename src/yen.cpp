@@ -5,8 +5,8 @@
 #include <queue>
 #include <stdexcept>
 #include <unordered_set>
-#include "threadpool.h"
-#include "yen.h"
+#include "threadpool.hpp"
+#include "yen.hpp"
 
 struct edgeHash {
     size_t operator()(const edge& e) const {

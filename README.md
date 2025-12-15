@@ -70,6 +70,7 @@ The project was built in iterative stages, tackling specific systems programming
 8.  **Threadpool Implementation & Parallelisation:** Built a reusable thread pool class with task queues and worker synchronization (`std::mutex`, `std::condition_variable`). Integrated it in the server to handle multiple clients simultaneously. Parallelised Yen's algorithm by moving the inner loop into another thread pool.
 9. **Optimization:** Tuned thread limits (e.g., 4 users $\times$ 4 threads) to prevent context switching overhead and exposed control to the client. Fixed numerous bugs and implemented the Selector pattern and minor optimizations.
 10. **Benchmarking:** Implemented high-precision `std::chrono` timing (microseconds) to measure performance gains.
+10. **Refactoring & README:** Wrote the README documentation and refactored the code by extracting common code into headers.
 
 
 ## How to Run

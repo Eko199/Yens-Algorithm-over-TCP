@@ -1,93 +1,16 @@
 #include <bit>
 #include <climits>
 #include <csignal>
-#include <cstdio>
 #include <cstdlib>
 #include <iostream>
-#include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <utility>
-#include <vector>
+#include "io.hpp"
 
 std::ostream cnull(nullptr);
 std::ostream& prompt = isatty(STDIN_FILENO) ? std::cout : cnull;
-
-template <typename T>
-bool read32(int fd, T* value) {
-    static_assert(sizeof(T) == 4, "Value must be 32-bit.");
-    uint32_t networkValue;
-    char* buf = reinterpret_cast<char*>(&networkValue);
-    int count = 0;
-    size_t total = 0;
-
-    while (total < sizeof(T) && (count = read(fd, buf + total, sizeof(T) - total))) {
-        total += count;
-    }
-
-    if (count < 0) {
-        perror("read");
-    }
-
-    *value = std::bit_cast<T>(ntohl(networkValue));
-    return total == sizeof(T);
-}
-
-bool readPath(const int fd, std::vector<unsigned>& p) {
-    uint32_t n;
-    if (!read32<uint32_t>(fd, &n)) {
-        std::cout << "There was an error when reading the result.\n";
-        return false;
-    }
-
-    p = std::vector<unsigned>(n);
-
-    for (size_t i = 0; i < n; ++i) {
-        if (!read32<uint32_t>(fd, &p[i])) {
-            std::cout << "There was an error when reading the result.\n";
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool readPaths(const int fd, std::vector<std::vector<unsigned>>& paths) {
-    int32_t n;
-    if (!read32<int32_t>(fd, &n)) {
-        std::cout << "There was an error when reading the result.\n";
-        return false;
-    }
-
-    if (n < 0) {
-        std::cout << "The server returned with an error:\n";
-        char buffer[1024];
-        ssize_t count;
-
-        while ((count = read(fd, buffer, sizeof(buffer)))) {
-            if (write(1, buffer, count) < 0) {
-                perror("write");
-                return false;
-            }
-        }
-
-        if (count < 0) {
-            perror("read");
-        }
-
-        return false;
-    }
-
-    paths = std::vector<std::vector<unsigned>>(n);
-
-    for (size_t i = 0; i < static_cast<size_t>(n); ++i) {
-        if (!readPath(fd, paths[i])) {
-            return false;
-        }
-    }
-    return true;
-}
 
 int getIntInput(const int min = INT_MIN, const int max = INT_MAX) {
     int result;

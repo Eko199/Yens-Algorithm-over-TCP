@@ -1,19 +1,16 @@
 #include <bit>
 #include <chrono>
-#include <cstdio>
 #include <errno.h>
-#include <functional>
 #include <iostream>
-#include <netinet/in.h>
 #include <cstring>
 #include <csignal>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <thread>
 #include <unistd.h>
-#include "threadpool.h"
-#include "yen.h"
+#include "io.hpp"
+#include "threadpool.hpp"
+#include "yen.hpp"
 
 #define MAX_USERS 4
 
@@ -25,99 +22,12 @@ void interruptHandler(int signum) {
     std::cout << "Closing the server...\n";
 }
 
-bool readUint32(const int fd, uint32_t* value) {
-    uint32_t networkValue;
-    char* buf = reinterpret_cast<char*>(&networkValue);
-    int count = 0;
-    size_t total = 0;
-
-    while (total < sizeof(uint32_t) && (count = read(fd, buf + total, sizeof(uint32_t) - total))) {
-        total += count;
-    }
-
-    if (count < 0) {
-        perror("read");
-    }
-
-    *value = ntohl(networkValue);
-    return total == sizeof(uint32_t);
-}
-
-bool readGraph(const int fd, std::vector<std::vector<std::pair<uint32_t, uint32_t>>>& graph) {
-    uint32_t n;
-
-    if (!readUint32(fd, &n)) {
-        return false;
-    }
-
-    graph = std::vector<std::vector<std::pair<uint32_t, uint32_t>>>(n);
-
-    for (size_t i = 0; i < n; ++i) {
-        uint32_t deg;
-
-        if (!readUint32(fd, &deg)) {
-            return false;
-        }
-
-        graph[i] = std::vector<std::pair<uint32_t, uint32_t>>(deg);
-
-        for (size_t j = 0; j < deg; ++j) {
-            uint32_t u, w;
-
-            if (!readUint32(fd, &u) || !readUint32(fd, &w)) {
-                return false;
-            }
-
-            graph[i][j] = { u, w };
-        }
-    }
-
-    return true;
-}
-
-template <typename T>
-ssize_t send32(const int fd, const T value) {
-    static_assert(sizeof(T) == 4, "Value must be 32-bit.");
-    uint32_t nToSend = htonl(std::bit_cast<uint32_t>(value));
-    return write(fd, &nToSend, sizeof(uint32_t));
-}
-
-bool sendPath(const int fd, const path& p) {
-    if (send32<uint32_t>(fd, p.size()) < 0) {
-        perror("write");
-        return false;
-    }
-
-    for (size_t i = 0; i < p.size(); ++i) {
-        if (send32<uint32_t>(fd, p[i]) < 0) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool sendPaths(const int fd, const std::vector<path>& paths) {
-    if (send32<uint32_t>(fd, paths.size()) < 0) {
-        perror("write");
-        return false;
-    }
-
-    for (size_t i = 0; i < paths.size(); ++i) {
-        if (!sendPath(fd, paths[i])) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 void serveClient(const int clientFd) {
     std::vector<std::vector<edge>> graph;
     uint32_t start, end, k, threads;
 
-    if (!readGraph(clientFd, graph) || !readUint32(clientFd, &start) || !readUint32(clientFd, &end) 
-        || !readUint32(clientFd, &k) || !readUint32(clientFd, &threads)) {
+    if (!readGraph(clientFd, graph) || !read32<uint32_t>(clientFd, &start) || !read32<uint32_t>(clientFd, &end) 
+        || !read32<uint32_t>(clientFd, &k) || !read32<uint32_t>(clientFd, &threads)) {
         std::cout << "An error occured.\n";
         close(clientFd);
         return;
@@ -255,8 +165,14 @@ int main() {
             }
 
             if (FD_ISSET(i, &writeFdsReady)) {
-                send32<uint32_t>(i, MAX_THREADS);
                 FD_CLR(i, &writeFds);
+
+                if (send32<uint32_t>(i, MAX_THREADS) < 0) {
+                    perror("write");
+                    close(i);
+                    continue;
+                }
+                
                 FD_SET(i, &readFds);
                 maxFd = std::max(maxFd, i);
             }
