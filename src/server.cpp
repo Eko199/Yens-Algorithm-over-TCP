@@ -168,7 +168,7 @@ void serveClient(const int clientFd) {
 }
 
 int main() {
-    if (signal(SIGINT, interruptHandler) == SIG_ERR) {
+    if (signal(SIGINT, interruptHandler) == SIG_ERR || signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
         perror("signal");
         return -1;
     }

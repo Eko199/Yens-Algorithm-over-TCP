@@ -8,7 +8,6 @@ This project implements a multi-threaded server capable of processing large grap
 * **Robust Server Architecture:** Handles `SIGINT` (Ctrl+C) gracefully via `select()`.
 * **Hardware Optimized:** Dynamically adjusts thread counts based on server load and `std::thread::hardware_concurrency`.
 
----
 
 ## The Algorithm
 
@@ -20,7 +19,6 @@ This project implements a multi-threaded server capable of processing large grap
     * *Note:* This project effectively divides the $N$ term by the number of available threads.
 * **Space Complexity:** $O(N + E + K \cdot N)$
 
----
 
 ## Architecture
 
@@ -53,7 +51,10 @@ $ bin/client.out < test/graph5.txt #using 4 threads
 The algorithm took 1619.46ms.
 ```
 
----
+##  Robustness & Signal Handling
+To ensure high availability, the project implements custom signal handling:
+* **SIGINT:** The server uses `select()` on the listening socket. This allows the process to catch `Ctrl+C` and shut down gracefully (closing sockets and joining threads) rather than being killed by the OS.
+* **SIGPIPE:** Both Server and Client ignore `SIGPIPE`. This prevents the application from crashing if the remote end closes the connection unexpectedly during a data transfer, allowing the code to handle the error via `errno` instead.
 
 ## Development Journey
 
@@ -67,10 +68,9 @@ The project was built in iterative stages, tackling specific systems programming
 6.  **Integration:** Linked the logic library with the server network layer and configured the build steps in the `Makefile`. First successful remote run of Yen's algorithm.
 7.  **Data Generation:** Used AI tools to generate valid and massive test datasets for benchmarking. In most cases, human fixes were required, limiting the number and size of the datasets.
 8.  **Threadpool Implementation & Parallelisation:** Built a reusable thread pool class with task queues and worker synchronization (`std::mutex`, `std::condition_variable`). Integrated it in the server to handle multiple clients simultaneously. Parallelised Yen's algorithm by moving the inner loop into another thread pool.
-9. **Optimization:** Tuned thread limits (e.g., 4 users $\times$ 4 threads) to prevent context switching overhead and exposed control to the client. Fixed numerous bugs and implemented minor optimisations.
+9. **Optimization:** Tuned thread limits (e.g., 4 users $\times$ 4 threads) to prevent context switching overhead and exposed control to the client. Fixed numerous bugs and implemented the Selector pattern and minor optimizations.
 10. **Benchmarking:** Implemented high-precision `std::chrono` timing (microseconds) to measure performance gains.
 
----
 
 ## How to Run
 

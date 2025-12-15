@@ -1,5 +1,6 @@
 #include <bit>
 #include <climits>
+#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -9,6 +10,9 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
+
+std::ostream cnull(nullptr);
+std::ostream& prompt = isatty(STDIN_FILENO) ? std::cout : cnull;
 
 template <typename T>
 bool read32(int fd, T* value) {
@@ -108,22 +112,22 @@ int getIntInput(const int min = INT_MIN, const int max = INT_MAX) {
 }
 
 std::vector<std::vector<std::pair<unsigned, unsigned>>> getGraphInput() {
-    std::cout << "How many vertices does the graph have? ";
+    prompt << "How many vertices does the graph have? ";
     unsigned n = static_cast<unsigned>(getIntInput(1));
 
     std::vector<std::vector<std::pair<unsigned, unsigned>>> graph(n);
 
     for (size_t i = 0; i < n; ++i) {
-        std::cout << "Enter number of edges from vertex " << i << ": ";
+        prompt << "Enter number of edges from vertex " << i << ": ";
         unsigned deg = getIntInput(0);
 
         graph[i] = std::vector<std::pair<unsigned, unsigned>>(deg);
 
         for (size_t j = 0; j < deg; ++j) {
-            std::cout << j + 1 << ") vertex: ";
+            prompt << j + 1 << ") vertex: ";
             unsigned u = getIntInput(0, n - 1);
 
-            std::cout << j + 1 << ") weight: ";
+            prompt << j + 1 << ") weight: ";
             unsigned w = getIntInput(0);
 
             graph[i][j] = { u, w };
@@ -157,6 +161,11 @@ void sendGraph(const int fd, const std::vector<std::vector<std::pair<unsigned, u
 }
 
 int main() {
+    if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+        perror("signal");
+        return -1;
+    }
+
     int s = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in server_addr = { AF_INET, htons(4095), 0 };
 
@@ -168,19 +177,19 @@ int main() {
 
     std::vector<std::vector<std::pair<unsigned, unsigned>>> graph = getGraphInput();
 
-    std::cout << "Enter start vertex: ";
+    prompt << "Enter start vertex: ";
     unsigned start = getIntInput(0, graph.size() - 1);
 
-    std::cout << "Enter end vertex: ";
+    prompt << "Enter end vertex: ";
     unsigned end = getIntInput(0, graph.size() - 1);
 
-    std::cout << "Enter K: ";
+    prompt << "Enter K: ";
     unsigned k = getIntInput(1);
 
     unsigned maxThreads;
     read32(s, &maxThreads);
 
-    std::cout << "Enter thread count (1-" << maxThreads << "): ";
+    prompt << "Enter thread count (1-" << maxThreads << "): ";
     unsigned threads = getIntInput(1, maxThreads);
 
     sendGraph(s, graph);
