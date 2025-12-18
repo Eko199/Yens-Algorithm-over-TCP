@@ -105,7 +105,7 @@ int main() {
         return -1;
     }
 
-    if (listen(s, MAX_USERS) < 0) {
+    if (listen(s, MAX_USERS * 5) < 0) {
         perror("listen");
         close(s);
         return -1;
