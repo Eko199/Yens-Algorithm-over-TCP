@@ -14,7 +14,7 @@
 
 #define MAX_USERS 4
 
-const uint32_t MAX_THREADS = std::max(std::thread::hardware_concurrency() / MAX_USERS, 1u);
+const uint32_t MAX_THREADS = std::max(std::thread::hardware_concurrency() / MAX_USERS * 3 / 2, 1u);
 bool running = true;
 
 void interruptHandler(int signum) {
